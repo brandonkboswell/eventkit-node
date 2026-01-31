@@ -1595,7 +1595,14 @@ Napi::Value SaveEvent(const Napi::CallbackInfo& info) {
     if (info.Length() >= 3 && info[2].IsBoolean()) {
         commit = info[2].As<Napi::Boolean>().Value();
     }
-    
+
+    // Get the originalOccurrenceDate parameter (optional, for recurring events)
+    NSDate *originalOccurrenceDate = nil;
+    if (info.Length() >= 4 && info[3].IsDate()) {
+        double timestamp = info[3].As<Napi::Date>().ValueOf();
+        originalOccurrenceDate = [NSDate dateWithTimeIntervalSince1970:(timestamp / 1000.0)];
+    }
+
     // Convert JavaScript object to NSDictionary
     NSMutableDictionary *eventDict = [NSMutableDictionary dictionary];
     
@@ -1672,7 +1679,7 @@ Napi::Value SaveEvent(const Napi::CallbackInfo& info) {
     // Use a try-catch block to catch any Objective-C exceptions
     @try {
         EventKitBridge *bridge = GetSharedBridge();
-        NSDictionary *result = [bridge saveEventWithEventData:eventDict span:spanString commit:commit];
+        NSDictionary *result = [bridge saveEventWithEventData:eventDict span:spanString commit:commit originalOccurrenceDate:originalOccurrenceDate];
         
         if (result == nil) {
             deferred.Reject(Napi::Error::New(env, "Failed to save event. Default calendar not available.").Value());

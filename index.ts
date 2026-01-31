@@ -1,39 +1,67 @@
 /**
  * Entity type for calendars
  */
-export type EntityType = 'event' | 'reminder';
+export type EntityType = 'event' | 'reminder'
 
 /**
  * Authorization status for calendar or reminder access
  * @see https://developer.apple.com/documentation/eventkit/ekauthorizationstatus
  */
-export type AuthorizationStatus = 'notDetermined' | 'restricted' | 'denied' | 'authorized' | 'fullAccess' | 'writeOnly' | 'unknown';
+export type AuthorizationStatus =
+  | 'notDetermined'
+  | 'restricted'
+  | 'denied'
+  | 'authorized'
+  | 'fullAccess'
+  | 'writeOnly'
+  | 'unknown'
 
 /**
  * Calendar type
  */
-export type CalendarType = 'local' | 'calDAV' | 'exchange' | 'subscription' | 'birthday' | 'unknown';
+export type CalendarType =
+  | 'local'
+  | 'calDAV'
+  | 'exchange'
+  | 'subscription'
+  | 'birthday'
+  | 'unknown'
 
 /**
  * Source type
  */
-export type SourceType = 'local' | 'exchange' | 'calDAV' | 'mobileme' | 'subscribed' | 'birthdays' | 'unknown';
+export type SourceType =
+  | 'local'
+  | 'exchange'
+  | 'calDAV'
+  | 'mobileme'
+  | 'subscribed'
+  | 'birthdays'
+  | 'unknown'
 
 /**
  * Color space
  */
-export type ColorSpace = 'rgb' | 'monochrome' | 'cmyk' | 'lab' | 'deviceN' | 'indexed' | 'pattern' | 'unknown';
+export type ColorSpace =
+  | 'rgb'
+  | 'monochrome'
+  | 'cmyk'
+  | 'lab'
+  | 'deviceN'
+  | 'indexed'
+  | 'pattern'
+  | 'unknown'
 
 /**
  * Color representation with multiple formats to prevent data loss
  */
 export interface CalendarColor {
   /** Hex color code with alpha (#RRGGBBAA) */
-  hex: string;
+  hex: string
   /** Raw color components as comma-separated values */
-  components: string;
+  components: string
   /** Color space of the original color */
-  space: ColorSpace;
+  space: ColorSpace
 }
 
 /**
@@ -42,11 +70,11 @@ export interface CalendarColor {
  */
 export interface Source {
   /** Unique identifier for the source */
-  id: string;
+  id: string
   /** Display name of the source */
-  title: string;
+  title: string
   /** Type of the source (local, calDAV, etc.) */
-  sourceType: SourceType;
+  sourceType: SourceType
 }
 
 /**
@@ -55,19 +83,19 @@ export interface Source {
  */
 export interface Calendar {
   /** Unique identifier for the calendar */
-  id: string;
+  id: string
   /** Display name of the calendar */
-  title: string;
+  title: string
   /** Whether the calendar allows content modifications */
-  allowsContentModifications: boolean;
+  allowsContentModifications: boolean
   /** Type of the calendar (local, calDAV, etc.) */
-  type: CalendarType;
+  type: CalendarType
   /** Color of the calendar with multiple representations */
-  color: CalendarColor;
+  color: CalendarColor
   /** Source of the calendar (e.g., iCloud, Google) */
-  source: string;
+  source: string
   /** Entity types this calendar supports (events, reminders, or both) */
-  allowedEntityTypes: EntityType[];
+  allowedEntityTypes: EntityType[]
 }
 
 /**
@@ -75,18 +103,18 @@ export interface Calendar {
  */
 export interface CalendarData {
   /** Unique identifier for the calendar (omit for new calendars) */
-  id?: string;
+  id?: string
   /** Display name of the calendar */
-  title: string;
+  title: string
   /** Source identifier for the calendar (optional, system will use default if not provided) */
-  sourceId?: string;
+  sourceId?: string
   /** Entity type for the calendar (event or reminder) */
-  entityType: EntityType;
+  entityType: EntityType
   /** Color for the calendar */
   color?: {
     /** Hex color code with alpha (#RRGGBBAA) or without alpha (#RRGGBB) */
-    hex: string;
-  };
+    hex: string
+  }
 }
 
 /**
@@ -95,31 +123,31 @@ export interface CalendarData {
  */
 export interface Event {
   /** Unique identifier for the event */
-  id: string;
+  id: string
   /** Title of the event */
-  title: string;
+  title: string
   /** Notes or description of the event */
-  notes: string | null;
+  notes: string | null
   /** Start date of the event */
-  startDate: Date;
+  startDate: Date
   /** End date of the event */
-  endDate: Date;
+  endDate: Date
   /** Whether the event is an all-day event */
-  isAllDay: boolean;
+  isAllDay: boolean
   /** Calendar identifier the event belongs to */
-  calendarId: string;
+  calendarId: string
   /** Calendar title the event belongs to */
-  calendarTitle: string;
+  calendarTitle: string
   /** Location of the event */
-  location: string | null;
+  location: string | null
   /** URL associated with the event */
-  url: string | null;
+  url: string | null
   /** Whether the event has alarms */
-  hasAlarms: boolean;
+  hasAlarms: boolean
   /** Availability during the event (free, busy, tentative, unavailable) */
-  availability: 'free' | 'busy' | 'tentative' | 'unavailable' | 'unknown';
+  availability: 'free' | 'busy' | 'tentative' | 'unavailable' | 'unknown'
   /** External identifier for the event, useful for external sync services */
-  externalIdentifier: string | null;
+  externalIdentifier: string | null
 }
 
 /**
@@ -128,49 +156,53 @@ export interface Event {
  */
 export interface Reminder {
   /** Unique identifier for the reminder */
-  id: string;
+  id: string
   /** Title of the reminder */
-  title: string;
+  title: string
   /** Notes or description of the reminder */
-  notes: string | null;
+  notes: string | null
   /** Calendar identifier the reminder belongs to */
-  calendarId: string;
+  calendarId: string
   /** Calendar title the reminder belongs to */
-  calendarTitle: string;
+  calendarTitle: string
   /** Whether the reminder is completed */
-  completed: boolean;
+  completed: boolean
   /** Date when the reminder was completed */
-  completionDate: Date | null;
+  completionDate: Date | null
   /** Due date of the reminder */
-  dueDate: Date | null;
+  dueDate: Date | null
   /** Start date of the reminder */
-  startDate: Date | null;
+  startDate: Date | null
   /** Priority of the reminder (0-9, where 0 is no priority) */
-  priority: number;
+  priority: number
   /** Whether the reminder has alarms */
-  hasAlarms: boolean;
+  hasAlarms: boolean
   /** External identifier for the reminder, useful for external sync services */
-  externalIdentifier: string | null;
+  externalIdentifier: string | null
 }
 
 /**
  * Predicate type for querying events and reminders
  */
-export type PredicateType = 'event' | 'reminder' | 'incompleteReminder' | 'completedReminder';
+export type PredicateType =
+  | 'event'
+  | 'reminder'
+  | 'incompleteReminder'
+  | 'completedReminder'
 
 /**
  * Predicate object for querying events and reminders
  */
 export interface Predicate {
   /** Type of the predicate */
-  type: PredicateType;
+  type: PredicateType
   /** Native handle for the predicate (internal use only) */
-  _nativeHandle?: any;
+  _nativeHandle?: any
 }
 
 // Import the native module using a path that will work when imported from dist
-const path = require('path');
-const nativeModule = require(path.join(__dirname, '../build/Release/eventkit'));
+const path = require('path')
+const nativeModule = require(path.join(__dirname, '../build/Release/eventkit'))
 
 /**
  * Get calendars for a specific entity type
@@ -178,7 +210,7 @@ const nativeModule = require(path.join(__dirname, '../build/Release/eventkit'));
  * @returns An array of Calendar objects
  */
 export function getCalendars(entityType: EntityType = 'event'): Calendar[] {
-  return nativeModule.getCalendars(entityType);
+  return nativeModule.getCalendars(entityType)
 }
 
 /**
@@ -187,7 +219,7 @@ export function getCalendars(entityType: EntityType = 'event'): Calendar[] {
  * @returns The calendar with the specified identifier, or null if not found
  */
 export function getCalendar(identifier: string): Calendar | null {
-  return nativeModule.getCalendar(identifier);
+  return nativeModule.getCalendar(identifier)
 }
 
 /**
@@ -196,7 +228,7 @@ export function getCalendar(identifier: string): Calendar | null {
  * @note On macOS 14.0+, uses requestFullAccessToEvents. On older versions, falls back to requestAccess(to: .event)
  */
 export function requestFullAccessToEvents(): Promise<boolean> {
-  return nativeModule.requestCalendarAccess();
+  return nativeModule.requestCalendarAccess()
 }
 
 /**
@@ -206,7 +238,7 @@ export function requestFullAccessToEvents(): Promise<boolean> {
  * @note Write-only access allows creating and modifying events but not reading them
  */
 export function requestWriteOnlyAccessToEvents(): Promise<boolean> {
-  return nativeModule.requestWriteOnlyAccessToEvents();
+  return nativeModule.requestWriteOnlyAccessToEvents()
 }
 
 /**
@@ -215,7 +247,7 @@ export function requestWriteOnlyAccessToEvents(): Promise<boolean> {
  * @note On macOS 14.0+, uses requestFullAccessToReminders. On older versions, falls back to requestAccess(to: .reminder)
  */
 export function requestFullAccessToReminders(): Promise<boolean> {
-  return nativeModule.requestRemindersAccess();
+  return nativeModule.requestRemindersAccess()
 }
 
 /**
@@ -227,15 +259,15 @@ export function requestFullAccessToReminders(): Promise<boolean> {
 export function commit(): Promise<void> {
   return nativeModule.commit().then(() => {
     // Return void on success
-    return;
-  });
+    return
+  })
 }
 
 /**
  * Reset the event store by discarding all unsaved changes
  */
 export function reset(): void {
-  nativeModule.reset();
+  nativeModule.reset()
 }
 
 /**
@@ -243,7 +275,7 @@ export function reset(): void {
  * @note This can be useful if external changes have been made to the calendar database
  */
 export function refreshSourcesIfNecessary(): void {
-  nativeModule.refreshSourcesIfNecessary();
+  nativeModule.refreshSourcesIfNecessary()
 }
 
 /**
@@ -252,7 +284,7 @@ export function refreshSourcesIfNecessary(): void {
  * @param commit - Whether to commit the changes immediately (default: true)
  * @returns A promise that resolves to the calendar identifier if successful
  * @throws Error if the calendar data is invalid or the operation fails
- * 
+ *
  * @example
  * // Create a new calendar
  * const newCalendarId = await saveCalendar({
@@ -260,7 +292,7 @@ export function refreshSourcesIfNecessary(): void {
  *   entityType: 'event',
  *   color: { hex: '#FF0000FF' }
  * });
- * 
+ *
  * @example
  * // Update an existing calendar
  * const calendar = getCalendar('calendar-id');
@@ -273,13 +305,19 @@ export function refreshSourcesIfNecessary(): void {
  *   });
  * }
  */
-export function saveCalendar(calendarData: CalendarData, commit: boolean = true): Promise<string> {
+export function saveCalendar(
+  calendarData: CalendarData,
+  commit: boolean = true,
+): Promise<string> {
   // Validate entity type
-  if (!calendarData.entityType || !['event', 'reminder'].includes(calendarData.entityType)) {
-    throw new Error('Invalid entity type. Must be "event" or "reminder".');
+  if (
+    !calendarData.entityType ||
+    !['event', 'reminder'].includes(calendarData.entityType)
+  ) {
+    throw new Error('Invalid entity type. Must be "event" or "reminder".')
   }
-  
-  return nativeModule.saveCalendar(calendarData, commit);
+
+  return nativeModule.saveCalendar(calendarData, commit)
 }
 
 /**
@@ -287,7 +325,7 @@ export function saveCalendar(calendarData: CalendarData, commit: boolean = true)
  * @returns An array of Source objects
  */
 export function getSources(): Source[] {
-  return nativeModule.getSources();
+  return nativeModule.getSources()
 }
 
 /**
@@ -296,7 +334,7 @@ export function getSources(): Source[] {
  * @note This method is only available on macOS 12.0 and later. On older versions, it returns an empty array.
  */
 export function getDelegateSources(): Source[] {
-  return nativeModule.getDelegateSources();
+  return nativeModule.getDelegateSources()
 }
 
 /**
@@ -305,7 +343,7 @@ export function getDelegateSources(): Source[] {
  * @returns The source with the specified identifier, or null if not found
  */
 export function getSource(sourceId: string): Source | null {
-  return nativeModule.getSource(sourceId);
+  return nativeModule.getSource(sourceId)
 }
 
 /**
@@ -314,7 +352,7 @@ export function getSource(sourceId: string): Source | null {
  * @param commit - Whether to commit the changes immediately (default: true)
  * @returns A promise that resolves to true if the calendar was successfully removed
  * @throws Error if the calendar does not exist or the operation fails
- * 
+ *
  * @example
  * // Remove a calendar
  * try {
@@ -324,18 +362,21 @@ export function getSource(sourceId: string): Source | null {
  *   console.error('Failed to remove calendar:', error);
  * }
  */
-export function removeCalendar(calendarId: string, commit: boolean = true): Promise<boolean> {
+export function removeCalendar(
+  calendarId: string,
+  commit: boolean = true,
+): Promise<boolean> {
   if (!calendarId) {
-    throw new Error('Calendar ID is required.');
+    throw new Error('Calendar ID is required.')
   }
-  
-  return nativeModule.removeCalendar(calendarId, commit);
+
+  return nativeModule.removeCalendar(calendarId, commit)
 }
 
 /**
  * Get the default calendar for new events
  * @returns The default calendar for new events, or null if not set
- * 
+ *
  * @example
  * const defaultCalendar = getDefaultCalendarForNewEvents();
  * if (defaultCalendar) {
@@ -345,13 +386,13 @@ export function removeCalendar(calendarId: string, commit: boolean = true): Prom
  * }
  */
 export function getDefaultCalendarForNewEvents(): Calendar | null {
-  return nativeModule.getDefaultCalendarForNewEvents();
+  return nativeModule.getDefaultCalendarForNewEvents()
 }
 
 /**
  * Get the default calendar for new reminders
  * @returns The default calendar for new reminders, or null if not set
- * 
+ *
  * @example
  * const defaultCalendar = getDefaultCalendarForNewReminders();
  * if (defaultCalendar) {
@@ -361,7 +402,7 @@ export function getDefaultCalendarForNewEvents(): Calendar | null {
  * }
  */
 export function getDefaultCalendarForNewReminders(): Calendar | null {
-  return nativeModule.getDefaultCalendarForNewReminders();
+  return nativeModule.getDefaultCalendarForNewReminders()
 }
 
 /**
@@ -370,7 +411,7 @@ export function getDefaultCalendarForNewReminders(): Calendar | null {
  * @param endDate - The end date of the range
  * @param calendarIds - Optional array of calendar IDs to filter by
  * @returns A predicate that can be used with getEventsWithPredicate
- * 
+ *
  * @example
  * // Get events for the next week
  * const startDate = new Date();
@@ -379,22 +420,26 @@ export function getDefaultCalendarForNewReminders(): Calendar | null {
  * const predicate = createEventPredicate(startDate, endDate);
  * const events = await getEventsWithPredicate(predicate);
  */
-export function createEventPredicate(startDate: Date, endDate: Date, calendarIds?: string[]): Predicate {
-  return nativeModule.createEventPredicate(startDate, endDate, calendarIds);
+export function createEventPredicate(
+  startDate: Date,
+  endDate: Date,
+  calendarIds?: string[],
+): Predicate {
+  return nativeModule.createEventPredicate(startDate, endDate, calendarIds)
 }
 
 /**
  * Create a predicate for querying reminders in specific calendars
  * @param calendarIds - Optional array of calendar IDs to filter by
  * @returns A predicate that can be used with getRemindersWithPredicate
- * 
+ *
  * @example
  * // Get all reminders
  * const predicate = createReminderPredicate();
  * const reminders = await getRemindersWithPredicate(predicate);
  */
 export function createReminderPredicate(calendarIds?: string[]): Predicate {
-  return nativeModule.createReminderPredicate(calendarIds);
+  return nativeModule.createReminderPredicate(calendarIds)
 }
 
 /**
@@ -403,7 +448,7 @@ export function createReminderPredicate(calendarIds?: string[]): Predicate {
  * @param endDate - Optional end date of the range
  * @param calendarIds - Optional array of calendar IDs to filter by
  * @returns A predicate that can be used with getRemindersWithPredicate
- * 
+ *
  * @example
  * // Get incomplete reminders due in the next week
  * const startDate = new Date();
@@ -412,8 +457,16 @@ export function createReminderPredicate(calendarIds?: string[]): Predicate {
  * const predicate = createIncompleteReminderPredicate(startDate, endDate);
  * const reminders = await getRemindersWithPredicate(predicate);
  */
-export function createIncompleteReminderPredicate(startDate?: Date, endDate?: Date, calendarIds?: string[]): Predicate {
-  return nativeModule.createIncompleteReminderPredicate(startDate, endDate, calendarIds);
+export function createIncompleteReminderPredicate(
+  startDate?: Date,
+  endDate?: Date,
+  calendarIds?: string[],
+): Predicate {
+  return nativeModule.createIncompleteReminderPredicate(
+    startDate,
+    endDate,
+    calendarIds,
+  )
 }
 
 /**
@@ -422,7 +475,7 @@ export function createIncompleteReminderPredicate(startDate?: Date, endDate?: Da
  * @param endDate - Optional end date of the range
  * @param calendarIds - Optional array of calendar IDs to filter by
  * @returns A predicate that can be used with getRemindersWithPredicate
- * 
+ *
  * @example
  * // Get reminders completed in the last week
  * const endDate = new Date();
@@ -431,15 +484,23 @@ export function createIncompleteReminderPredicate(startDate?: Date, endDate?: Da
  * const predicate = createCompletedReminderPredicate(startDate, endDate);
  * const reminders = await getRemindersWithPredicate(predicate);
  */
-export function createCompletedReminderPredicate(startDate?: Date, endDate?: Date, calendarIds?: string[]): Predicate {
-  return nativeModule.createCompletedReminderPredicate(startDate, endDate, calendarIds);
+export function createCompletedReminderPredicate(
+  startDate?: Date,
+  endDate?: Date,
+  calendarIds?: string[],
+): Predicate {
+  return nativeModule.createCompletedReminderPredicate(
+    startDate,
+    endDate,
+    calendarIds,
+  )
 }
 
 /**
  * Get events matching a predicate
  * @param predicate - The predicate to match events against
  * @returns An array of Event objects matching the predicate
- * 
+ *
  * @example
  * // Get events for the next week
  * const startDate = new Date();
@@ -450,38 +511,44 @@ export function createCompletedReminderPredicate(startDate?: Date, endDate?: Dat
  */
 export function getEventsWithPredicate(predicate: Predicate): Event[] {
   if (predicate.type !== 'event') {
-    throw new Error('Predicate must be an event predicate');
+    throw new Error('Predicate must be an event predicate')
   }
-  
-  return nativeModule.getEventsWithPredicate(predicate);
+
+  return nativeModule.getEventsWithPredicate(predicate)
 }
 
 /**
  * Get reminders matching a predicate
  * @param predicate - The predicate to match reminders against
  * @returns A promise that resolves to an array of Reminder objects matching the predicate
- * 
+ *
  * @example
  * // Get incomplete reminders
  * const predicate = createIncompleteReminderPredicate();
  * const reminders = await getRemindersWithPredicate(predicate);
  */
-export function getRemindersWithPredicate(predicate: Predicate): Promise<Reminder[]> {
+export function getRemindersWithPredicate(
+  predicate: Predicate,
+): Promise<Reminder[]> {
   // Check if the predicate type is valid for reminders
-  if (predicate.type !== 'reminder' && 
-      predicate.type !== 'incompleteReminder' && 
-      predicate.type !== 'completedReminder') {
-    throw new Error(`Invalid predicate type: ${predicate.type}. Must be 'reminder', 'incompleteReminder', or 'completedReminder'.`);
+  if (
+    predicate.type !== 'reminder' &&
+    predicate.type !== 'incompleteReminder' &&
+    predicate.type !== 'completedReminder'
+  ) {
+    throw new Error(
+      `Invalid predicate type: ${predicate.type}. Must be 'reminder', 'incompleteReminder', or 'completedReminder'.`,
+    )
   }
-  
-  return nativeModule.getRemindersWithPredicate(predicate);
+
+  return nativeModule.getRemindersWithPredicate(predicate)
 }
 
 /**
  * Get an event by its identifier
  * @param identifier - The unique identifier of the event to retrieve
  * @returns The Event object if found, or null if not found
- * 
+ *
  * @example
  * // Get an event by its identifier
  * const event = getEvent('123456789');
@@ -492,7 +559,7 @@ export function getRemindersWithPredicate(predicate: Predicate): Promise<Reminde
  * }
  */
 export function getEvent(identifier: string): Event | null {
-  return nativeModule.getEvent(identifier);
+  return nativeModule.getEvent(identifier)
 }
 
 /**
@@ -500,16 +567,16 @@ export function getEvent(identifier: string): Event | null {
  */
 export interface CalendarItemResult {
   /** Type of the calendar item */
-  type: 'event' | 'reminder';
+  type: 'event' | 'reminder'
   /** The calendar item (either an Event or Reminder) */
-  item: Event | Reminder;
+  item: Event | Reminder
 }
 
 /**
  * Get a calendar item (event or reminder) by its identifier
  * @param identifier - The unique identifier of the calendar item to retrieve
  * @returns An object containing the type and the item if found, or null if not found
- * 
+ *
  * @example
  * // Get a calendar item by its identifier
  * const result = getCalendarItem('123456789');
@@ -526,14 +593,14 @@ export interface CalendarItemResult {
  * }
  */
 export function getCalendarItem(identifier: string): CalendarItemResult | null {
-  return nativeModule.getCalendarItem(identifier);
+  return nativeModule.getCalendarItem(identifier)
 }
 
 /**
  * Get calendar items that match an external identifier
  * @param externalIdentifier - The external identifier to search for
  * @returns An array of objects containing the type and the item if found, or null if not found
- * 
+ *
  * @example
  * // Get calendar items with a specific external identifier
  * const items = getCalendarItemsWithExternalIdentifier('external-123456');
@@ -551,15 +618,17 @@ export function getCalendarItem(identifier: string): CalendarItemResult | null {
  *   console.log('No calendar items found with that external identifier');
  * }
  */
-export function getCalendarItemsWithExternalIdentifier(externalIdentifier: string): CalendarItemResult[] | null {
-  return nativeModule.getCalendarItemsWithExternalIdentifier(externalIdentifier);
+export function getCalendarItemsWithExternalIdentifier(
+  externalIdentifier: string,
+): CalendarItemResult[] | null {
+  return nativeModule.getCalendarItemsWithExternalIdentifier(externalIdentifier)
 }
 
 /**
  * Options for handling recurring events when removing events
  * @see https://developer.apple.com/documentation/eventkit/ekspan
  */
-export type SpanType = 'thisEvent' | 'futureEvents';
+export type SpanType = 'thisEvent' | 'futureEvents'
 
 /**
  * Remove an event by its identifier
@@ -567,17 +636,21 @@ export type SpanType = 'thisEvent' | 'futureEvents';
  * @param span - How to handle recurring events: 'thisEvent' for just this occurrence, 'futureEvents' for this and all future occurrences (default: 'thisEvent')
  * @param commit - Whether to commit the change immediately (default: true)
  * @returns A promise that resolves to true if the event was successfully removed, false otherwise
- * 
+ *
  * @example
  * // Remove a single event
  * const success = await removeEvent('event-id');
- * 
+ *
  * @example
  * // Remove this and all future occurrences of a recurring event
  * const success = await removeEvent('event-id', 'futureEvents');
  */
-export function removeEvent(identifier: string, span: SpanType = 'thisEvent', commit: boolean = true): Promise<boolean> {
-  return nativeModule.removeEvent(identifier, span, commit);
+export function removeEvent(
+  identifier: string,
+  span: SpanType = 'thisEvent',
+  commit: boolean = true,
+): Promise<boolean> {
+  return nativeModule.removeEvent(identifier, span, commit)
 }
 
 /**
@@ -585,19 +658,22 @@ export function removeEvent(identifier: string, span: SpanType = 'thisEvent', co
  * @param identifier - The unique identifier of the reminder to remove
  * @param commit - Whether to commit the change immediately (default: true)
  * @returns A promise that resolves to true if the reminder was successfully removed, false otherwise
- * 
+ *
  * @example
  * // Remove a reminder
  * const success = await removeReminder('reminder-id');
- * 
+ *
  * @example
  * // Remove a reminder without committing changes immediately
  * const success = await removeReminder('reminder-id', false);
  * // Later, commit all pending changes
  * await commit();
  */
-export function removeReminder(identifier: string, commit: boolean = true): Promise<boolean> {
-  return nativeModule.removeReminder(identifier, commit);
+export function removeReminder(
+  identifier: string,
+  commit: boolean = true,
+): Promise<boolean> {
+  return nativeModule.removeReminder(identifier, commit)
 }
 
 /**
@@ -605,25 +681,25 @@ export function removeReminder(identifier: string, commit: boolean = true): Prom
  */
 export interface EventData {
   /** Unique identifier for the event (omit for new events) */
-  id?: string;
+  id?: string
   /** Title of the event */
-  title: string;
+  title: string
   /** Notes or description of the event */
-  notes?: string;
+  notes?: string
   /** Start date of the event */
-  startDate: Date;
+  startDate: Date
   /** End date of the event */
-  endDate: Date;
+  endDate: Date
   /** Whether the event is an all-day event */
-  isAllDay?: boolean;
+  isAllDay?: boolean
   /** Calendar identifier the event belongs to (required for new events, optional for updates) */
-  calendarId?: string;
+  calendarId?: string
   /** Location of the event */
-  location?: string;
+  location?: string
   /** URL associated with the event */
-  url?: string;
+  url?: string
   /** Availability during the event (free, busy, tentative, unavailable) */
-  availability?: 'free' | 'busy' | 'tentative' | 'unavailable';
+  availability?: 'free' | 'busy' | 'tentative' | 'unavailable'
 }
 
 /**
@@ -633,7 +709,7 @@ export interface EventData {
  * @param commit - Whether to commit the changes immediately (default: true)
  * @returns A promise that resolves to the event identifier
  * @throws Error if the event data is invalid or the operation fails
- * 
+ *
  * @example
  * // Create a new event
  * const eventId = await saveEvent({
@@ -643,7 +719,7 @@ export interface EventData {
  *   notes: 'Discuss project status',
  *   location: 'Conference Room A'
  * });
- * 
+ *
  * @example
  * // Update an existing event
  * const eventId = await saveEvent({
@@ -653,8 +729,18 @@ export interface EventData {
  *   endDate: new Date('2023-04-20T11:30:00') // Changed end time
  * });
  */
-export function saveEvent(eventData: EventData, span: SpanType = 'thisEvent', commit: boolean = true): Promise<string> {
-  return nativeModule.saveEvent(eventData, span, commit);
+export function saveEvent(
+  eventData: EventData,
+  span: SpanType = 'thisEvent',
+  commit: boolean = true,
+  originalOccurrenceDate?: Date,
+): Promise<string> {
+  return nativeModule.saveEvent(
+    eventData,
+    span,
+    commit,
+    originalOccurrenceDate || null,
+  )
 }
 
 /**
@@ -662,21 +748,21 @@ export function saveEvent(eventData: EventData, span: SpanType = 'thisEvent', co
  */
 export interface ReminderData {
   /** Unique identifier for the reminder (omit for new reminders) */
-  id?: string;
+  id?: string
   /** Title of the reminder */
-  title: string;
+  title: string
   /** Notes or description of the reminder */
-  notes?: string;
+  notes?: string
   /** Calendar identifier the reminder belongs to (required for new reminders, optional for updates) */
-  calendarId?: string;
+  calendarId?: string
   /** Whether the reminder is completed */
-  completed?: boolean;
+  completed?: boolean
   /** Due date of the reminder */
-  dueDate?: Date;
+  dueDate?: Date
   /** Start date of the reminder */
-  startDate?: Date;
+  startDate?: Date
   /** Priority of the reminder (0-9, where 0 is no priority) */
-  priority?: number;
+  priority?: number
 }
 
 /**
@@ -685,7 +771,7 @@ export interface ReminderData {
  * @param commit - Whether to commit the changes immediately (default: true)
  * @returns A promise that resolves to the reminder identifier
  * @throws Error if the reminder data is invalid or the operation fails
- * 
+ *
  * @example
  * // Create a new reminder
  * const reminderId = await saveReminder({
@@ -693,7 +779,7 @@ export interface ReminderData {
  *   notes: 'Milk, eggs, bread',
  *   dueDate: new Date('2023-04-21T18:00:00')
  * });
- * 
+ *
  * @example
  * // Mark an existing reminder as completed
  * const reminderId = await saveReminder({
@@ -701,8 +787,11 @@ export interface ReminderData {
  *   completed: true
  * });
  */
-export function saveReminder(reminderData: ReminderData, commit: boolean = true): Promise<string> {
-  return nativeModule.saveReminder(reminderData, commit);
+export function saveReminder(
+  reminderData: ReminderData,
+  commit: boolean = true,
+): Promise<string> {
+  return nativeModule.saveReminder(reminderData, commit)
 }
 
 /**
@@ -711,6 +800,8 @@ export function saveReminder(reminderData: ReminderData, commit: boolean = true)
  * @returns The current authorization status
  * @see https://developer.apple.com/documentation/eventkit/ekauthorizationstatus
  */
-export function getAuthorizationStatus(entityType: EntityType): AuthorizationStatus {
-  return nativeModule.getAuthorizationStatus(entityType);
-} 
+export function getAuthorizationStatus(
+  entityType: EntityType,
+): AuthorizationStatus {
+  return nativeModule.getAuthorizationStatus(entityType)
+}

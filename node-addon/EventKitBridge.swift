@@ -695,21 +695,60 @@ import Foundation
     
     // MARK: - Save Methods
     
-    @objc public func saveEvent(eventData: NSDictionary, span: String, commit: Bool) -> [String: Any]? {
+    @objc public func saveEvent(eventData: NSDictionary, span: String, commit: Bool, originalOccurrenceDate: Date?) -> [String: Any]? {
         // Get the event ID if it exists (for updating an existing event)
         let eventId = eventData["id"] as? String
-        
+
+        // DEBUG: Log parameters to verify new code is running
+        print("========================================")
+        print("[EventKit saveEvent] UPDATED VERSION RUNNING")
+        print("[EventKit saveEvent] eventId: \(eventId ?? "nil")")
+        print("[EventKit saveEvent] span: \(span)")
+        print("[EventKit saveEvent] originalOccurrenceDate: \(originalOccurrenceDate?.description ?? "nil")")
+        print("========================================")
+
         // Create a new event or get an existing one
         let event: EKEvent
-        if let eventId = eventId, let existingEvent = eventStore.event(withIdentifier: eventId) {
-            // Update existing event
-            event = existingEvent
+        if let eventId = eventId {
+            // IMPORTANT: For recurring events, if we have an originalOccurrenceDate,
+            // we need to fetch the SPECIFIC occurrence at that date, not the master event.
+            // This ensures we modify only that instance (creating an exception/detachment)
+            // instead of modifying the entire recurring series.
+            if let occurrenceDate = originalOccurrenceDate {
+                // Use a predicate to fetch events in a small window around the occurrence date
+                // This will return the specific occurrence, not the master event
+                let startDate = occurrenceDate.addingTimeInterval(-1) // 1 second before
+                let endDate = occurrenceDate.addingTimeInterval(86400) // 1 day after (to catch all-day events)
+
+                let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
+                let events = eventStore.events(matching: predicate)
+
+                // Find the event with matching identifier
+                if let foundEvent = events.first(where: { $0.eventIdentifier == eventId }) {
+                    print("[EventKit] Fetched specific occurrence at: \(occurrenceDate)")
+                    event = foundEvent
+                } else {
+                    // Fallback to master event if specific occurrence not found
+                    print("[EventKit] Specific occurrence not found, using master event")
+                    if let existingEvent = eventStore.event(withIdentifier: eventId) {
+                        event = existingEvent
+                    } else {
+                        return ["success": false, "error": "Event not found with identifier: \(eventId)"]
+                    }
+                }
+            } else if let existingEvent = eventStore.event(withIdentifier: eventId) {
+                // No occurrence date provided, use master event
+                print("[EventKit] Fetched master event (no occurrence date)")
+                event = existingEvent
+            } else {
+                return ["success": false, "error": "Event not found with identifier: \(eventId)"]
+            }
         } else {
             // Create a new event
             event = EKEvent(eventStore: eventStore)
-            
+
             // For new events, we need to set a calendar
-            if let calendarId = eventData["calendarId"] as? String, 
+            if let calendarId = eventData["calendarId"] as? String,
                let calendar = eventStore.calendar(withIdentifier: calendarId) {
                 event.calendar = calendar
             } else {
