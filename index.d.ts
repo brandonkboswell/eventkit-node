@@ -427,18 +427,27 @@ export function getEvents(startDate: Date, endDate: Date, calendarIds?: string[]
 /**
  * Get an event by its identifier
  * @param identifier - The unique identifier of the event to retrieve
+ * @param occurrenceDate - Optional date to fetch a specific occurrence of a recurring event.
+ *                         If omitted, returns the master event. If the specific occurrence is not found,
+ *                         gracefully falls back to the master event.
  * @returns The Event object if found, or null if not found
- * 
+ *
  * @example
- * // Get an event by its identifier
+ * // Get the master event
  * const event = getEvent('123456789');
  * if (event) {
  *   console.log(`Found event: ${event.title}`);
- * } else {
- *   console.log('Event not found');
+ * }
+ *
+ * @example
+ * // Get a specific occurrence of a recurring event
+ * const occurrenceDate = new Date('2024-03-15T10:00:00');
+ * const occurrence = getEvent('123456789', occurrenceDate);
+ * if (occurrence) {
+ *   console.log(`Occurrence starts at: ${occurrence.startDate}`);
  * }
  */
-export function getEvent(identifier: string): Event | null;
+export function getEvent(identifier: string, occurrenceDate?: Date): Event | null;
 
 /**
  * Calendar item result containing either an event or a reminder

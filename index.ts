@@ -558,8 +558,8 @@ export function getRemindersWithPredicate(
  *   console.log('Event not found');
  * }
  */
-export function getEvent(identifier: string): Event | null {
-  return nativeModule.getEvent(identifier)
+export function getEvent(identifier: string, occurrenceDate?: Date): Event | null {
+  return nativeModule.getEvent(identifier, occurrenceDate)
 }
 
 /**

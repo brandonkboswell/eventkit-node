@@ -529,13 +529,36 @@ import Foundation
     
     // MARK: - Query Methods
     
-    @objc public func getEvent(identifier: String) -> Event? {
-        // Check if the identifier is for a valid event
+    @objc public func getEvent(identifier: String, occurrenceDate: Date?) -> Event? {
+        // If an occurrence date is provided, fetch the specific occurrence
+        // This is important for recurring events where we need a specific instance
+        if let occurrenceDate = occurrenceDate {
+            // Use a predicate to fetch events in a window around the occurrence date
+            // This will return the specific occurrence, not the master event
+            let startDate = occurrenceDate.addingTimeInterval(-1) // 1 second before
+            let endDate = occurrenceDate.addingTimeInterval(86400) // 1 day after (to catch all-day events)
+
+            let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
+            let events = eventStore.events(matching: predicate)
+
+            // Find the event with matching identifier
+            // Note: For recurring events, occurrences have IDs like "BASE_ID/RID=timestamp"
+            // so we need to check if the event ID starts with our identifier
+            if let foundEvent = events.first(where: { event in
+                let eventId = event.eventIdentifier ?? ""
+                return eventId == identifier || eventId.hasPrefix(identifier + "/")
+            }) {
+                return Event(from: foundEvent)
+            }
+            // If specific occurrence not found, fall through to master event lookup
+        }
+
+        // No occurrence date provided, or occurrence not found - get master event
         guard let ekEvent = eventStore.event(withIdentifier: identifier) else {
             // If the object doesn't exist or is not an event (e.g., it's a reminder), return nil
             return nil
         }
-        
+
         // Create and return the Event object
         return Event(from: ekEvent)
     }

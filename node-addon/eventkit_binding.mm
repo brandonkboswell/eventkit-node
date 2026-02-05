@@ -799,30 +799,37 @@ Napi::Object EventToJSObject(const Napi::CallbackInfo& info, Event *event) {
 // GetEvent function
 Napi::Value GetEvent(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
-    
+
     // Check if identifier parameter is provided
     if (info.Length() < 1 || !info[0].IsString()) {
         Napi::Error::New(env, "Event identifier is required and must be a string.")
             .ThrowAsJavaScriptException();
         return env.Null();
     }
-    
+
     // Get the identifier parameter
     std::string identifier = info[0].As<Napi::String>().Utf8Value();
-    
+
     // Create an NSString from the identifier
     NSString* identifierString = [NSString stringWithUTF8String:identifier.c_str()];
-    
+
+    // Get optional occurrence date parameter
+    NSDate *occurrenceDate = nil;
+    if (info.Length() >= 2 && info[1].IsDate()) {
+        double timestamp = info[1].As<Napi::Date>().ValueOf();
+        occurrenceDate = [NSDate dateWithTimeIntervalSince1970:(timestamp / 1000.0)];
+    }
+
     // Use a try-catch block to catch any Objective-C exceptions
     @try {
         EventKitBridge *bridge = GetSharedBridge();
-        Event *event = [bridge getEventWithIdentifier:identifierString];
-        
+        Event *event = [bridge getEventWithIdentifier:identifierString occurrenceDate:occurrenceDate];
+
         // Return null if event is not found
         if (event == nil) {
             return env.Null();
         }
-        
+
         return EventToJSObject(info, event);
     } @catch (NSException *exception) {
         // Create a more helpful error message
@@ -832,7 +839,7 @@ Napi::Value GetEvent(const Napi::CallbackInfo& info) {
         } else {
             errorMessage += [[exception reason] UTF8String];
         }
-        
+
         Napi::Error::New(env, errorMessage).ThrowAsJavaScriptException();
         return env.Null();
     }
