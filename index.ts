@@ -703,38 +703,55 @@ export interface EventData {
 }
 
 /**
+ * Result returned from saveEvent operation
+ */
+export interface SaveEventResult {
+  /** Whether the save operation was successful */
+  success: boolean
+  /** The event identifier (ID) */
+  id: string
+  /** The full saved event object */
+  event: Event
+  /** Error message if the operation failed */
+  error?: string
+}
+
+/**
  * Save an event (create new or update existing)
  * @param eventData - The event data to save
  * @param span - How to handle recurring events when saving: 'thisEvent' for just this occurrence, 'futureEvents' for this and all future occurrences (default: 'thisEvent')
  * @param commit - Whether to commit the changes immediately (default: true)
- * @returns A promise that resolves to the event identifier
+ * @returns A promise that resolves to a SaveEventResult containing the event ID and full event object
  * @throws Error if the event data is invalid or the operation fails
  *
  * @example
  * // Create a new event
- * const eventId = await saveEvent({
+ * const result = await saveEvent({
  *   title: 'Team Meeting',
  *   startDate: new Date('2023-04-20T10:00:00'),
  *   endDate: new Date('2023-04-20T11:00:00'),
  *   notes: 'Discuss project status',
  *   location: 'Conference Room A'
  * });
+ * console.log('Event ID:', result.id);
+ * console.log('Event title:', result.event.title);
  *
  * @example
  * // Update an existing event
- * const eventId = await saveEvent({
+ * const result = await saveEvent({
  *   id: 'existing-event-id',
  *   title: 'Updated Meeting Title',
  *   startDate: new Date('2023-04-20T10:00:00'),
  *   endDate: new Date('2023-04-20T11:30:00') // Changed end time
  * });
+ * console.log('Updated event:', result.event);
  */
 export function saveEvent(
   eventData: EventData,
   span: SpanType = 'thisEvent',
   commit: boolean = true,
   originalOccurrenceDate?: Date,
-): Promise<string> {
+): Promise<SaveEventResult> {
   return nativeModule.saveEvent(
     eventData,
     span,

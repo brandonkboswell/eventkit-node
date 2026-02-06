@@ -1476,48 +1476,117 @@ class SaveEventWorker : public Napi::AsyncWorker {
 public:
     SaveEventWorker(const Napi::Promise::Deferred& deferred)
         : Napi::AsyncWorker(Napi::Function::New(deferred.Env(), [](const Napi::CallbackInfo& info) { return info.Env().Undefined(); })),
-          deferred_(deferred), success_(false), eventId_("") {}
-    
+          deferred_(deferred), success_(false), eventId_(""), event_(nil) {}
+
     // Execute is called on a worker thread
     void Execute() override {
         // This is intentionally left empty as we're not doing any work here
         // The actual work is done in the Swift code
     }
-    
+
     // OnOK is called on the main thread when Execute completes
     void OnOK() override {
         Napi::HandleScope scope(Env());
-        
+
         if (success_) {
-            // If successful, return the event ID
-            deferred_.Resolve(Napi::String::New(Env(), eventId_));
+            // If successful, return full result object with id and event
+            Napi::Object result = Napi::Object::New(Env());
+            result.Set("success", Napi::Boolean::New(Env(), true));
+            result.Set("id", Napi::String::New(Env(), eventId_));
+
+            // Convert Event object to JS if available
+            if (event_) {
+                Napi::Object eventObj = Napi::Object::New(Env());
+
+                eventObj.Set("id", Napi::String::New(Env(), [event_.id UTF8String]));
+                eventObj.Set("title", Napi::String::New(Env(), [event_.title UTF8String]));
+
+                if (event_.notes) {
+                    eventObj.Set("notes", Napi::String::New(Env(), [event_.notes UTF8String]));
+                } else {
+                    eventObj.Set("notes", Env().Null());
+                }
+
+                eventObj.Set("startDate", Napi::Date::New(Env(), event_.startDate.timeIntervalSince1970 * 1000));
+                eventObj.Set("endDate", Napi::Date::New(Env(), event_.endDate.timeIntervalSince1970 * 1000));
+                eventObj.Set("isAllDay", Napi::Boolean::New(Env(), event_.isAllDay));
+                eventObj.Set("calendarId", Napi::String::New(Env(), [event_.calendarId UTF8String]));
+                eventObj.Set("calendarTitle", Napi::String::New(Env(), [event_.calendarTitle UTF8String]));
+
+                if (event_.location) {
+                    eventObj.Set("location", Napi::String::New(Env(), [event_.location UTF8String]));
+                } else {
+                    eventObj.Set("location", Env().Null());
+                }
+
+                if (event_.url) {
+                    eventObj.Set("url", Napi::String::New(Env(), [event_.url UTF8String]));
+                } else {
+                    eventObj.Set("url", Env().Null());
+                }
+
+                eventObj.Set("hasAlarms", Napi::Boolean::New(Env(), event_.hasAlarms));
+                eventObj.Set("availability", Napi::String::New(Env(), [event_.availability UTF8String]));
+
+                if (event_.externalIdentifier) {
+                    eventObj.Set("externalIdentifier", Napi::String::New(Env(), [event_.externalIdentifier UTF8String]));
+                } else {
+                    eventObj.Set("externalIdentifier", Env().Null());
+                }
+
+                result.Set("event", eventObj);
+
+                [event_ release]; // Release the retained event
+                event_ = nil;
+            }
+
+            deferred_.Resolve(result);
         } else {
             // If failed, reject with the error message
             deferred_.Reject(Napi::Error::New(Env(), errorMessage_).Value());
         }
     }
-    
+
     // OnError is called on the main thread if Execute throws
     void OnError(const Napi::Error& error) override {
         Napi::HandleScope scope(Env());
+
+        // Clean up event if exists
+        if (event_) {
+            [event_ release];
+            event_ = nil;
+        }
+
         deferred_.Reject(error.Value());
     }
-    
+
     // Method to set the result values
-    void SetResult(bool success, const std::string& eventIdOrError) {
+    void SetResult(bool success, const std::string& eventIdOrError, Event* event = nil) {
         success_ = success;
         if (success) {
             eventId_ = eventIdOrError;
+            if (event) {
+                event_ = [event retain]; // Retain the event to prevent deallocation
+            }
         } else {
             errorMessage_ = eventIdOrError;
         }
     }
-    
+
+    // Destructor
+    ~SaveEventWorker() {
+        if (event_) {
+            [event_ release];
+            event_ = nil;
+        }
+    }
+
 private:
     Napi::Promise::Deferred deferred_;
     bool success_;
     std::string eventId_;
     std::string errorMessage_;
+    Event* event_;
 };
 
 // Class to handle the save reminder operation
@@ -1679,30 +1748,31 @@ Napi::Value SaveEvent(const Napi::CallbackInfo& info) {
     
     // Create NSString from the span
     NSString* spanString = [NSString stringWithUTF8String:span.c_str()];
-    
+
     // Create a worker to process the save operation
     SaveEventWorker *worker = new SaveEventWorker(deferred);
-    
+
     // Use a try-catch block to catch any Objective-C exceptions
     @try {
         EventKitBridge *bridge = GetSharedBridge();
         NSDictionary *result = [bridge saveEventWithEventData:eventDict span:spanString commit:commit originalOccurrenceDate:originalOccurrenceDate];
-        
+
         if (result == nil) {
             deferred.Reject(Napi::Error::New(env, "Failed to save event. Default calendar not available.").Value());
             return deferred.Promise();
         }
-        
+
         // Check if the operation was successful
         NSNumber *success = result[@"success"];
         if ([success boolValue]) {
-            // If successful, set the event ID
+            // If successful, set the event ID and event object
             NSString *eventId = result[@"id"];
-            worker->SetResult(true, [eventId UTF8String]);
+            Event *event = result[@"event"];
+            worker->SetResult(true, [eventId UTF8String], event);
         } else {
             // If failed, set the error message
             NSString *errorMessage = result[@"error"] ?: @"Unknown error saving event";
-            worker->SetResult(false, [errorMessage UTF8String]);
+            worker->SetResult(false, [errorMessage UTF8String], nil);
         }
     } @catch (NSException *exception) {
         // Create a helpful error message

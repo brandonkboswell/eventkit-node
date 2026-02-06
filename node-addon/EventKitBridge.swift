@@ -385,7 +385,20 @@ import Foundation
         @objc public let externalIdentifier: String?
         
         init(from ekEvent: EKEvent) {
-            self.id = ekEvent.eventIdentifier
+            // Get base identifier
+            let baseIdentifier = ekEvent.eventIdentifier ?? ""
+
+            // For recurring events, add RID suffix if not already present
+            let identifier: String
+            if ekEvent.hasRecurrenceRules && !baseIdentifier.contains("/RID=") {
+                // Calculate RID from occurrence start date
+                let timestamp = Int(ekEvent.startDate.timeIntervalSinceReferenceDate)
+                identifier = "\(baseIdentifier)/RID=\(timestamp)"
+            } else {
+                identifier = baseIdentifier
+            }
+
+            self.id = identifier
             self.title = ekEvent.title ?? "Untitled Event"
             self.notes = ekEvent.notes
             self.startDate = ekEvent.startDate
@@ -397,7 +410,7 @@ import Foundation
             self.url = ekEvent.url?.absoluteString
             self.hasAlarms = ekEvent.hasAlarms
             self.externalIdentifier = ekEvent.calendarItemExternalIdentifier
-            
+
             // Convert availability to string
             switch ekEvent.availability {
             case .free:
@@ -411,7 +424,7 @@ import Foundation
             default:
                 self.availability = "unknown"
             }
-            
+
             super.init()
         }
     }
@@ -530,36 +543,72 @@ import Foundation
     // MARK: - Query Methods
     
     @objc public func getEvent(identifier: String, occurrenceDate: Date?) -> Event? {
-        // If an occurrence date is provided, fetch the specific occurrence
-        // This is important for recurring events where we need a specific instance
-        if let occurrenceDate = occurrenceDate {
-            // Use a predicate to fetch events in a window around the occurrence date
-            // This will return the specific occurrence, not the master event
-            let startDate = occurrenceDate.addingTimeInterval(-1) // 1 second before
-            let endDate = occurrenceDate.addingTimeInterval(86400) // 1 day after (to catch all-day events)
+        // Parse RID suffix if present in identifier (similar to saveEvent)
+        var baseIdentifier = identifier
+        var derivedOccurrenceDate = occurrenceDate
+
+        print("[EventKit getEvent] identifier: \(identifier)")
+        print("[EventKit getEvent] occurrenceDate: \(occurrenceDate?.description ?? "nil")")
+
+        if identifier.contains("/RID=") {
+            let components = identifier.split(separator: "/", maxSplits: 1)
+            baseIdentifier = String(components[0])
+
+            print("[EventKit getEvent] RID suffix detected")
+            print("[EventKit getEvent] Base ID: \(baseIdentifier)")
+
+            // Extract RID timestamp if we don't already have an explicit occurrence date
+            if derivedOccurrenceDate == nil, components.count > 1 {
+                let ridPart = String(components[1])
+                if ridPart.hasPrefix("RID=") {
+                    let timestampString = ridPart.replacingOccurrences(of: "RID=", with: "")
+                    if let timestamp = Double(timestampString) {
+                        derivedOccurrenceDate = Date(timeIntervalSinceReferenceDate: timestamp)
+                        print("[EventKit getEvent] Derived occurrence date from RID: \(derivedOccurrenceDate!)")
+                    }
+                }
+            } else if derivedOccurrenceDate != nil {
+                print("[EventKit getEvent] Using explicit occurrenceDate, ignoring RID")
+            }
+        }
+
+        // If an occurrence date is available (explicit or derived from RID), fetch specific occurrence
+        if let occurrenceDate = derivedOccurrenceDate {
+            print("[EventKit getEvent] Fetching specific occurrence at: \(occurrenceDate)")
+
+            let startDate = occurrenceDate.addingTimeInterval(-1)
+            let endDate = occurrenceDate.addingTimeInterval(86400)
 
             let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
             let events = eventStore.events(matching: predicate)
 
-            // Find the event with matching identifier
-            // Note: For recurring events, occurrences have IDs like "BASE_ID/RID=timestamp"
-            // so we need to check if the event ID starts with our identifier
-            if let foundEvent = events.first(where: { event in
-                let eventId = event.eventIdentifier ?? ""
-                return eventId == identifier || eventId.hasPrefix(identifier + "/")
+            print("[EventKit getEvent] Predicate returned \(events.count) events")
+
+            // Match by base ID AND start date (same logic as saveEvent)
+            // IMPORTANT: After first modification, detached occurrences get /RID suffix in their eventIdentifier
+            // So we need to check for both exact match AND prefix match
+            if let foundEvent = events.first(where: {
+                let eventId = $0.eventIdentifier ?? ""
+                let matchesId = (eventId == baseIdentifier || eventId.hasPrefix(baseIdentifier + "/RID="))
+                let matchesTime = abs($0.startDate.timeIntervalSince(occurrenceDate)) < 60
+                return matchesId && matchesTime
             }) {
+                print("[EventKit getEvent] ✓ Found specific occurrence")
+                print("[EventKit getEvent]   Time difference: \(abs(foundEvent.startDate.timeIntervalSince(occurrenceDate))) seconds")
                 return Event(from: foundEvent)
+            } else {
+                print("[EventKit getEvent] ✗ Specific occurrence not found in predicate results")
             }
-            // If specific occurrence not found, fall through to master event lookup
         }
 
-        // No occurrence date provided, or occurrence not found - get master event
-        guard let ekEvent = eventStore.event(withIdentifier: identifier) else {
-            // If the object doesn't exist or is not an event (e.g., it's a reminder), return nil
+        // Fallback: No occurrence date, or occurrence not found - get master event
+        print("[EventKit getEvent] Fetching master event with base ID: \(baseIdentifier)")
+        guard let ekEvent = eventStore.event(withIdentifier: baseIdentifier) else {
+            print("[EventKit getEvent] ✗ Master event not found")
             return nil
         }
 
-        // Create and return the Event object
+        print("[EventKit getEvent] ✓ Found master event")
         return Event(from: ekEvent)
     }
     
@@ -624,14 +673,14 @@ import Foundation
         guard predicate.predicateType == "event" else {
             return NSArray() // Return empty array if predicate type doesn't match
         }
-        
+
         let events = eventStore.events(matching: predicate.predicate)
         let result = NSMutableArray()
-        
+
         for event in events {
             result.add(Event(from: event))
         }
-        
+
         return result
     }
     
@@ -673,11 +722,74 @@ import Foundation
     // MARK: - Removal Methods
     
     @objc public func removeEvent(withIdentifier identifier: String, span: String, commit: Bool) -> Bool {
-        // Try to get the event
-        guard let event = eventStore.event(withIdentifier: identifier) else {
+        // Parse RID suffix if present in identifier (same logic as getEvent/saveEvent)
+        var baseIdentifier = identifier
+        var derivedOccurrenceDate: Date? = nil
+
+        print("[EventKit removeEvent] identifier: \(identifier)")
+        print("[EventKit removeEvent] span: \(span)")
+
+        if identifier.contains("/RID=") {
+            let components = identifier.split(separator: "/", maxSplits: 1)
+            baseIdentifier = String(components[0])
+
+            print("[EventKit removeEvent] RID suffix detected")
+            print("[EventKit removeEvent] Base ID: \(baseIdentifier)")
+
+            // Extract RID timestamp to get the specific occurrence
+            if components.count > 1 {
+                let ridPart = String(components[1])
+                if ridPart.hasPrefix("RID=") {
+                    let timestampString = ridPart.replacingOccurrences(of: "RID=", with: "")
+                    if let timestamp = Double(timestampString) {
+                        derivedOccurrenceDate = Date(timeIntervalSinceReferenceDate: timestamp)
+                        print("[EventKit removeEvent] Derived occurrence date from RID: \(derivedOccurrenceDate!)")
+                    }
+                }
+            }
+        }
+
+        // Fetch the event - use predicate if we have occurrence date from RID
+        var event: EKEvent?
+
+        if let occurrenceDate = derivedOccurrenceDate {
+            print("[EventKit removeEvent] Fetching specific occurrence at: \(occurrenceDate)")
+
+            let startDate = occurrenceDate.addingTimeInterval(-1)
+            let endDate = occurrenceDate.addingTimeInterval(86400)
+
+            let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
+            let events = eventStore.events(matching: predicate)
+
+            print("[EventKit removeEvent] Predicate returned \(events.count) events")
+
+            // Match by base ID AND start date (same logic as getEvent/saveEvent)
+            event = events.first(where: {
+                $0.eventIdentifier == baseIdentifier &&
+                abs($0.startDate.timeIntervalSince(occurrenceDate)) < 60
+            })
+
+            if event != nil {
+                print("[EventKit removeEvent] ✓ Found specific occurrence")
+            } else {
+                print("[EventKit removeEvent] ✗ Specific occurrence not found")
+            }
+        } else {
+            // No RID suffix - fetch master event
+            print("[EventKit removeEvent] Fetching master event with base ID: \(baseIdentifier)")
+            event = eventStore.event(withIdentifier: baseIdentifier)
+
+            if event != nil {
+                print("[EventKit removeEvent] ✓ Found master event")
+            } else {
+                print("[EventKit removeEvent] ✗ Master event not found")
+            }
+        }
+
+        guard let event = event else {
             return false
         }
-        
+
         // Convert string span to EKSpan
         var ekSpan: EKSpan
         switch span {
@@ -688,13 +800,17 @@ import Foundation
         default:
             ekSpan = .thisEvent
         }
-        
+
+        print("[EventKit removeEvent] Attempting to remove event: \(event.title ?? "Untitled")")
+        print("[EventKit removeEvent] Span: \(span)")
+
         do {
             // Remove the event
             try eventStore.remove(event, span: ekSpan, commit: commit)
+            print("[EventKit removeEvent] ✓ Event removed successfully")
             return true
         } catch {
-            // If there was an error removing the event, return false
+            print("[EventKit removeEvent] ✗ Remove failed: \(error.localizedDescription)")
             return false
         }
     }
@@ -724,20 +840,59 @@ import Foundation
 
         // DEBUG: Log parameters to verify new code is running
         print("========================================")
-        print("[EventKit saveEvent] UPDATED VERSION RUNNING")
+        print("[EventKit saveEvent] UPDATED VERSION WITH FULL LOGGING")
         print("[EventKit saveEvent] eventId: \(eventId ?? "nil")")
         print("[EventKit saveEvent] span: \(span)")
+        print("[EventKit saveEvent] commit: \(commit)")
         print("[EventKit saveEvent] originalOccurrenceDate: \(originalOccurrenceDate?.description ?? "nil")")
+        print("[EventKit saveEvent] eventData keys: \(eventData.allKeys)")
+        if let title = eventData["title"] as? String {
+            print("[EventKit saveEvent] eventData.title: \(title)")
+        }
+        if let startDate = eventData["startDate"] as? Date {
+            print("[EventKit saveEvent] eventData.startDate: \(startDate)")
+        }
+        if let endDate = eventData["endDate"] as? Date {
+            print("[EventKit saveEvent] eventData.endDate: \(endDate)")
+        }
         print("========================================")
+
+        // Parse RID suffix if present in event ID
+        var baseEventId = eventId
+        var derivedOccurrenceDate = originalOccurrenceDate
+
+        if let eventId = eventId, eventId.contains("/RID=") {
+            let components = eventId.split(separator: "/", maxSplits: 1)
+            baseEventId = String(components[0])
+
+            print("[EventKit saveEvent] RID suffix detected in event ID")
+            print("[EventKit saveEvent] Base ID: \(baseEventId ?? "nil")")
+
+            // Extract RID timestamp if we don't already have an explicit occurrence date
+            if derivedOccurrenceDate == nil, components.count > 1 {
+                let ridPart = String(components[1])
+                if ridPart.hasPrefix("RID=") {
+                    let timestampString = ridPart.replacingOccurrences(of: "RID=", with: "")
+                    if let timestamp = Double(timestampString) {
+                        derivedOccurrenceDate = Date(timeIntervalSinceReferenceDate: timestamp)
+                        print("[EventKit saveEvent] Derived occurrence date from RID: \(derivedOccurrenceDate?.description ?? "nil")")
+                    } else {
+                        print("[EventKit saveEvent] WARNING: Failed to parse RID timestamp: \(timestampString)")
+                    }
+                }
+            } else if derivedOccurrenceDate != nil {
+                print("[EventKit saveEvent] Using explicit originalOccurrenceDate, ignoring RID timestamp")
+            }
+        }
 
         // Create a new event or get an existing one
         let event: EKEvent
-        if let eventId = eventId {
-            // IMPORTANT: For recurring events, if we have an originalOccurrenceDate,
+        if let baseId = baseEventId {
+            // IMPORTANT: For recurring events, if we have an occurrence date (explicit or derived from RID),
             // we need to fetch the SPECIFIC occurrence at that date, not the master event.
             // This ensures we modify only that instance (creating an exception/detachment)
             // instead of modifying the entire recurring series.
-            if let occurrenceDate = originalOccurrenceDate {
+            if let occurrenceDate = derivedOccurrenceDate {
                 // Use a predicate to fetch events in a small window around the occurrence date
                 // This will return the specific occurrence, not the master event
                 let startDate = occurrenceDate.addingTimeInterval(-1) // 1 second before
@@ -746,62 +901,100 @@ import Foundation
                 let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
                 let events = eventStore.events(matching: predicate)
 
-                // Find the event with matching identifier
-                if let foundEvent = events.first(where: { $0.eventIdentifier == eventId }) {
-                    print("[EventKit] Fetched specific occurrence at: \(occurrenceDate)")
+                // Debug: Log all events returned by predicate
+                print("[EventKit] Predicate query returned \(events.count) events")
+                for (index, evt) in events.enumerated() {
+                    print("[EventKit]   Event[\(index)]: id=\(evt.eventIdentifier ?? "nil"), title=\(evt.title ?? "nil"), startDate=\(evt.startDate!)")
+                }
+                print("[EventKit] Looking for baseId: \(baseId)")
+                print("[EventKit] Target occurrenceDate: \(occurrenceDate)")
+
+                // Find the event with matching base identifier AND start date
+                // We need to match both because multiple occurrences share the same eventIdentifier
+                // IMPORTANT: After first modification, detached occurrences get /RID suffix in their eventIdentifier
+                // So we need to check for both exact match AND prefix match
+                if let foundEvent = events.first(where: {
+                    let eventId = $0.eventIdentifier ?? ""
+                    let matchesId = (eventId == baseId || eventId.hasPrefix(baseId + "/RID="))
+                    let matchesTime = abs($0.startDate.timeIntervalSince(occurrenceDate)) < 60
+                    return matchesId && matchesTime
+                }) {
+                    print("[EventKit] MATCH FOUND!")
+                    print("[EventKit]   Matched event startDate: \(foundEvent.startDate!)")
+                    print("[EventKit]   Time difference from target: \(foundEvent.startDate.timeIntervalSince(occurrenceDate)) seconds")
                     event = foundEvent
                 } else {
                     // Fallback to master event if specific occurrence not found
-                    print("[EventKit] Specific occurrence not found, using master event")
-                    if let existingEvent = eventStore.event(withIdentifier: eventId) {
+                    print("[EventKit] NO MATCH FOUND in predicate results")
+                    print("[EventKit] Attempting fallback to master event with ID: \(baseId)")
+                    if let existingEvent = eventStore.event(withIdentifier: baseId) {
+                        print("[EventKit] ✓ Fallback successful - found master event")
+                        print("[EventKit]   Master event title: \(existingEvent.title ?? "nil")")
+                        print("[EventKit]   Master event startDate: \(existingEvent.startDate!)")
                         event = existingEvent
                     } else {
-                        return ["success": false, "error": "Event not found with identifier: \(eventId)"]
+                        print("[EventKit] ✗ Fallback FAILED - master event not found")
+                        print("[EventKit] ERROR: Event not found with identifier: \(baseId)")
+                        return ["success": false, "error": "Event not found with identifier: \(baseId)"]
                     }
                 }
-            } else if let existingEvent = eventStore.event(withIdentifier: eventId) {
+            } else if let existingEvent = eventStore.event(withIdentifier: baseId) {
                 // No occurrence date provided, use master event
                 print("[EventKit] Fetched master event (no occurrence date)")
+                print("[EventKit]   Event title: \(existingEvent.title ?? "nil")")
+                print("[EventKit]   Event startDate: \(existingEvent.startDate!)")
                 event = existingEvent
             } else {
-                return ["success": false, "error": "Event not found with identifier: \(eventId)"]
+                print("[EventKit] ERROR: Event not found with identifier: \(baseId)")
+                print("[EventKit]   Tried to fetch event but eventStore returned nil")
+                return ["success": false, "error": "Event not found with identifier: \(baseId)"]
             }
         } else {
             // Create a new event
+            print("[EventKit] Creating NEW event (no ID provided)")
             event = EKEvent(eventStore: eventStore)
 
             // For new events, we need to set a calendar
             if let calendarId = eventData["calendarId"] as? String,
                let calendar = eventStore.calendar(withIdentifier: calendarId) {
+                print("[EventKit] Setting calendar: \(calendar.title) (\(calendarId))")
                 event.calendar = calendar
             } else {
-                // No valid calendar ID provided
+                print("[EventKit] ERROR: No valid calendarId provided for new event")
                 return ["success": false, "error": "A valid calendarId is required for new events"]
             }
         }
-        
+
+        print("[EventKit] Updating event properties...")
+
         // Update event properties
         if let title = eventData["title"] as? String {
+            print("[EventKit]   Setting title: \(title)")
             event.title = title
         }
         
         if let notes = eventData["notes"] as? String {
+            print("[EventKit]   Setting notes: \(notes.prefix(50))...")
             event.notes = notes
         }
-        
+
         if let startDate = eventData["startDate"] as? Date {
+            print("[EventKit]   Setting startDate: \(startDate)")
             event.startDate = startDate
         }
-        
+
         if let endDate = eventData["endDate"] as? Date {
+            print("[EventKit]   Setting endDate: \(endDate)")
             event.endDate = endDate
         }
-        
+
         if let isAllDay = eventData["isAllDay"] as? Bool {
+            print("[EventKit]   Setting isAllDay: \(isAllDay)")
             event.isAllDay = isAllDay
         }
-        
+
         if let location = eventData["location"] as? String {
+            print("[EventKit]   Setting location: \(location)")
             event.location = location
         }
         
@@ -834,12 +1027,34 @@ import Foundation
         default:
             ekSpan = .thisEvent
         }
-        
+
+        print("[EventKit] Preparing to save event...")
+        print("[EventKit]   Event ID: \(event.eventIdentifier ?? "new event")")
+        print("[EventKit]   Event title: \(event.title ?? "nil")")
+        print("[EventKit]   Event calendar: \(event.calendar?.title ?? "nil")")
+        print("[EventKit]   Event calendar writable: \(event.calendar?.allowsContentModifications ?? false)")
+        print("[EventKit]   Span: \(span) (ekSpan: \(ekSpan == .thisEvent ? "thisEvent" : "futureEvents"))")
+        print("[EventKit]   Commit: \(commit)")
+
         // Save the event
         do {
+            print("[EventKit] Calling eventStore.save()...")
             try eventStore.save(event, span: ekSpan, commit: commit)
-            return ["success": true, "id": event.eventIdentifier!]
+            print("[EventKit] ✓ Save successful!")
+            print("[EventKit]   Saved event ID: \(event.eventIdentifier!)")
+
+            // Create Event object to return full event data
+            let savedEvent = Event(from: event)
+
+            return [
+                "success": true,
+                "id": event.eventIdentifier!,
+                "event": savedEvent
+            ]
         } catch {
+            print("[EventKit] ✗ Save FAILED with error:")
+            print("[EventKit]   Error: \(error.localizedDescription)")
+            print("[EventKit]   Error details: \(error)")
             return ["success": false, "error": error.localizedDescription]
         }
     }
