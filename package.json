@@ -7,7 +7,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "npm run build:native && npm run build:ts",
-    "build:native": "swift build -c release && cp .build/release/libEventKitBridge.a ./ && node-gyp rebuild",
+    "build:native": "swift build -c release --arch arm64 && swift build -c release --arch x86_64 && lipo -create .build/arm64-apple-macosx/release/libEventKitBridge.a .build/x86_64-apple-macosx/release/libEventKitBridge.a -output libEventKitBridge.a && node-gyp rebuild --arch=arm64 && cp build/Release/eventkit.node /tmp/eventkit-arm64.node && node-gyp rebuild --arch=x64 && lipo -create /tmp/eventkit-arm64.node build/Release/eventkit.node -output build/Release/eventkit.node",
     "clean": "rm -rf build .build libEventKitBridge.a dist",
     "build:ts": "tsc",
     "prepublishOnly": "npm run clean && npm run build"
