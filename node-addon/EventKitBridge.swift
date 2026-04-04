@@ -978,6 +978,14 @@ import Foundation
             event.notes = notes
         }
 
+        // isAllDay must be set BEFORE startDate/endDate so that EventKit does not normalize
+        // the times to midnight/23:59:59 (which it does automatically for all-day events).
+        // Setting isAllDay first lets EventKit treat subsequent date assignments as timed.
+        if let isAllDay = eventData["isAllDay"] as? Bool {
+            print("[EventKit]   Setting isAllDay: \(isAllDay)")
+            event.isAllDay = isAllDay
+        }
+
         if let startDate = eventData["startDate"] as? Date {
             print("[EventKit]   Setting startDate: \(startDate)")
             event.startDate = startDate
@@ -986,11 +994,6 @@ import Foundation
         if let endDate = eventData["endDate"] as? Date {
             print("[EventKit]   Setting endDate: \(endDate)")
             event.endDate = endDate
-        }
-
-        if let isAllDay = eventData["isAllDay"] as? Bool {
-            print("[EventKit]   Setting isAllDay: \(isAllDay)")
-            event.isAllDay = isAllDay
         }
 
         if let location = eventData["location"] as? String {
